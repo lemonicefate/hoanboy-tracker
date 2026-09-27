@@ -397,3 +397,39 @@ def test_automatic_backup_keeps_latest_thirty_days_and_preserves_manual(api):
     files = client.get("/api/backups").json["files"]
     assert len([f for f in files if f["name"].startswith("auto-")]) == 30
     assert any(f["name"] == manual for f in files)
+
+
+def test_explicit_revalidation_updates_history_without_rewriting_source_or_saved_reports(
+    api,
+):
+    client, _, path = api
+    client.post("/api/patients", json={"mrn": "001", "name": "Synthetic"})
+    client.post("/api/sync")
+    client.post("/api/measurements/1/assignment", json={"patient_id": 1})
+    report = client.post("/api/measurements/1/reports").json
+    original_html = client.get(f"/api/reports/{report['id']}/html").text
+    original = client.get("/api/measurements/1").json
+    verified = create_app(
+        path,
+        generate_password_hash("synthetic-password"),
+        verified={"bhWeightKg": "Synthetic reviewed evidence"},
+    ).test_client()
+    verified.environ_base["HTTP_X_CSRF_TOKEN"] = verified.post(
+        "/api/login", json={"password": "synthetic-password"}
+    ).json["csrf"]
+    # Merely starting with new evidence must not silently rewrite history.
+    assert verified.get("/api/patients/1").json["trends"]["weight"][0]["value"] is None
+    response = verified.post("/api/measurements/1/revalidate")
+    assert response.status_code == 200
+    assert response.json["changed"]
+    assert verified.get("/api/patients/1").json["trends"]["weight"][0]["value"] == 70
+    result = verified.get("/api/measurements/1").json
+    assert result["raw"] == original["raw"]
+    assert result["source_row"] == original["source_row"]
+    assert len(result["normalizations"]) == 2
+    assert result["normalizations"][0]["metrics"]["weight"]["status"] == "unverified"
+    assert result["normalizations"][1]["metrics"]["weight"]["status"] == "verified"
+    assert verified.get(f"/api/reports/{report['id']}/html").text == original_html
+    replacement = verified.post("/api/measurements/1/reports").json
+    assert replacement["id"] != report["id"]
+    assert not verified.post("/api/measurements/1/revalidate").json["changed"]

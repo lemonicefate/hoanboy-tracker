@@ -1,5 +1,6 @@
 from pathlib import Path
 import threading
+import re
 from playwright.sync_api import sync_playwright, expect
 from werkzeug.serving import make_server, WSGIRequestHandler
 from werkzeug.security import generate_password_hash
@@ -35,7 +36,13 @@ def test_browser_login_sync_filing_report_offline_and_restore(tmp_path):
         )
 
     app = create_app(
-        tmp_path, generate_password_hash("synthetic-password"), reader=reader
+        tmp_path,
+        generate_password_hash("synthetic-password"),
+        reader=reader,
+        verified={
+            "bhWeightKg": "synthetic fixture contract",
+            "bhBodyFatRate": "synthetic fixture contract",
+        },
     )
     server = make_server(
         "127.0.0.1", 0, app, threaded=True, request_handler=QuietHandler
@@ -95,6 +102,20 @@ def test_browser_login_sync_filing_report_offline_and_restore(tmp_path):
                     ).status_code
                     == 200
                 )
+            page.goto(base + "/#patient/1")
+            expect(page.locator("#chart-weight circle")).to_have_count(5)
+            tick = (
+                page.locator("#chart-weight text")
+                .filter(has_text=re.compile(r"^70\.0$"))
+                .bounding_box()
+            )
+            point = page.locator("#chart-weight circle").first.bounding_box()
+            assert (
+                abs(tick["y"] + tick["height"] / 2 - point["y"] - point["height"] / 2)
+                < 10
+            )
+            page.screenshot(path=str(artifacts / "timeline.png"), full_page=True)
+            page.goto(base + "/#measurement/5")
             page.get_by_role("button", name="保存／查看報告核對稿").click()
             expect(
                 page.get_by_role("heading", name="人體健康分析報告", exact=True)
@@ -127,6 +148,40 @@ def test_browser_login_sync_filing_report_offline_and_restore(tmp_path):
             expect(page.locator("#notice")).to_contain_text("手動備份已完成")
             page.get_by_role("button", name="隔離還原並驗證").first.click()
             expect(page.get_by_role("heading", name="隔離還原驗證通過")).to_be_visible()
+            # Late search results cannot replace controls on a newer route.
+            delayed = []
+            page.route("**/api/patients?q=stale", lambda route: delayed.append(route))
+            page.goto(base + "/#patients")
+            expect(page.get_by_role("link", name="查看追蹤")).to_be_visible()
+            page.get_by_label("搜尋病人").fill("stale")
+            with page.expect_request("**/api/patients?q=stale"):
+                page.get_by_role("button", name="搜尋", exact=True).click()
+            page.get_by_role("link", name="01 待歸檔").click()
+            page.get_by_role("link", name="02 病人與追蹤").click()
+            expect(page.get_by_role("link", name="查看追蹤")).to_be_visible()
+            delayed.pop().fulfill(
+                json=[dict(id=999, mrn="old", name="STALE RESPONSE", phone="")]
+            )
+            expect(page.locator("#patient-list")).not_to_contain_text("STALE RESPONSE")
+
+            # Successful mutations must not hide a failed automatic backup.
+            (tmp_path / "backups").rename(tmp_path / "preserved-backups")
+            (tmp_path / "backups").write_text("blocked destination")
+            state["offline"] = False
+            page.get_by_role("button", name="同步設備", exact=True).click()
+            expect(page.locator("#notice")).to_contain_text("同步完成")
+            expect(page.locator("#backup-warning")).to_be_visible()
+            page.reload()
+            expect(page.locator("#backup-warning")).to_be_visible()
+            page.goto(base + "/#measurement/5")
+            page.get_by_role("button", name="保存／查看報告核對稿").click()
+            expect(page.get_by_role("link", name="開啟報告核對稿")).to_be_visible()
+            expect(page.locator("#backup-warning")).to_be_visible()
+            (tmp_path / "backups").unlink()
+            (tmp_path / "preserved-backups").rename(tmp_path / "backups")
+            page.goto(base + "/#backups")
+            page.get_by_role("button", name="立即備份").click()
+            expect(page.locator("#backup-warning")).to_be_hidden()
             page.set_viewport_size({"width": 390, "height": 844})
             page.goto(base + "/#pending")
             assert page.evaluate(

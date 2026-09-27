@@ -1,4 +1,4 @@
-from datetime import datetime, timezone, timedelta
+from datetime import timedelta
 from pathlib import Path
 import secrets
 import sqlite3
@@ -15,10 +15,7 @@ from hoanboy.store import Store
 from hoanboy.device import DeviceReader
 from hoanboy.service import Archive, Busy, SyncFailed, measurement
 from hoanboy.backup import Backups
-
-
-def now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+from hoanboy.clock import now
 
 
 def create_app(data_dir: Path, password_hash: str, **options: Any) -> Flask:
@@ -238,6 +235,14 @@ def create_app(data_dir: Path, password_hash: str, **options: Any) -> Flask:
             if row is None:
                 raise LookupError("找不到量測")
             result = measurement(row)
+            result["normalizations"] = archive.normalizations(measurement_id)
+            result["reports"] = [
+                dict(r)
+                for r in db.execute(
+                    "SELECT id,created_at,mapping_version,status,invalidated_at FROM reports WHERE measurement_id=? ORDER BY id DESC",
+                    (measurement_id,),
+                )
+            ]
             result["events"] = [
                 dict(r)
                 for r in db.execute(
@@ -275,6 +280,10 @@ def create_app(data_dir: Path, password_hash: str, **options: Any) -> Flask:
     @app.post("/api/measurements/<int:measurement_id>/reports")
     def generate_report(measurement_id: int) -> Any:
         return jsonify(archive.report(measurement_id)), 201
+
+    @app.post("/api/measurements/<int:measurement_id>/revalidate")
+    def revalidate(measurement_id: int) -> Any:
+        return jsonify(archive.revalidate(measurement_id))
 
     @app.get("/api/reports/<int:report_id>")
     def report_metadata(report_id: int) -> Any:

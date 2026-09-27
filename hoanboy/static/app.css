@@ -306,6 +306,9 @@ footer {
   background: #ffebe2;
   color: #8d3e21;
 }
+#backup-warning {
+  margin: 20px 42px 0;
+}
 table {
   width: 100%;
   border-collapse: collapse;

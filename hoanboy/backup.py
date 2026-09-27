@@ -17,10 +17,11 @@ def inspect(path: Path) -> dict[str, int]:
     try:
         connection = sqlite3.connect(path.as_uri() + "?mode=ro", uri=True)
         try:
-            if (
-                connection.execute("PRAGMA application_id").fetchone()[0] != 1213153614
-                or connection.execute("PRAGMA user_version").fetchone()[0] != 1
-            ):
+            if connection.execute("PRAGMA application_id").fetchone()[
+                0
+            ] != 1213153614 or connection.execute("PRAGMA user_version").fetchone()[
+                0
+            ] not in (1, 2):
                 raise ValueError("備份格式或版本不符")
             if (
                 connection.execute("PRAGMA integrity_check").fetchone()[0] != "ok"

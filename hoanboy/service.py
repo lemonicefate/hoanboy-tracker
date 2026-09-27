@@ -1,16 +1,12 @@
-from datetime import datetime, timezone
 import hashlib
 import json
 import threading
 from typing import Any, Callable
 from hoanboy.device import validate_snapshot
-from hoanboy.mapping import MAPPING_VERSION, normalize, parse_time
+from hoanboy.mapping import normalize, parse_time, mapping_version
 from hoanboy.store import Store
 from hoanboy import reports
-
-
-def now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+from hoanboy.clock import now
 
 
 def encode(value: Any) -> str:
@@ -54,6 +50,7 @@ class Archive:
             verified,
         )
         self.sync_lock = threading.Lock()
+        mapping_version(verified)
 
     def sync(self) -> dict[str, Any]:
         if not self.sync_lock.acquire(blocking=False):
@@ -85,7 +82,7 @@ class Archive:
                         (self.device, key),
                     ).fetchone()
                     counts["updated" if previous else "added"] += 1
-                    db.execute(
+                    inserted = db.execute(
                         """INSERT INTO measurements(device,source_key,digest,raw,source_schema,source_row,captured_at,
                         source_time,sort_time,source_timezone,clock_status,source_identifier,metrics,mapping_version,changed_from)
                         VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
@@ -103,9 +100,13 @@ class Archive:
                             "unverified",
                             raw.get("username"),
                             encode(normalize(raw, self.verified)),
-                            MAPPING_VERSION,
+                            mapping_version(self.verified),
                             previous["id"] if previous else None,
                         ),
+                    )
+                    db.execute(
+                        "INSERT INTO normalizations(measurement_id,metrics,mapping_version,at,actor) SELECT id,metrics,mapping_version,captured_at,'import' FROM measurements WHERE id=?",
+                        (inserted.lastrowid,),
                     )
                 db.execute(
                     "UPDATE sync_runs SET status='success',finished_at=?,added=?,updated=?,unchanged=? WHERE id=?",
@@ -204,8 +205,8 @@ class Archive:
             if current["sort_time"] is None:
                 raise ValueError("量測時間無法解析，不能建立截止歷史報告")
             existing = db.execute(
-                "SELECT id,status FROM reports WHERE measurement_id=? AND invalidated_at IS NULL ORDER BY id DESC LIMIT 1",
-                (measurement_id,),
+                "SELECT id,status FROM reports WHERE measurement_id=? AND mapping_version=? AND invalidated_at IS NULL ORDER BY id DESC LIMIT 1",
+                (measurement_id, current["mapping_version"]),
             ).fetchone()
             if existing:
                 return dict(existing)
@@ -252,6 +253,41 @@ class Archive:
                 [(report_id, m["id"]) for m in history],
             )
             return dict(id=report_id, status="draft")
+
+    def normalizations(self, measurement_id: int) -> list[dict[str, Any]]:
+        with self.store.connect() as db:
+            versions = [
+                dict(r)
+                for r in db.execute(
+                    "SELECT * FROM normalizations WHERE measurement_id=? ORDER BY id",
+                    (measurement_id,),
+                )
+            ]
+        for version in versions:
+            version["metrics"] = json.loads(version["metrics"])
+        return versions
+
+    def revalidate(self, measurement_id: int) -> dict[str, Any]:
+        version = mapping_version(self.verified)
+        with self.store.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute(
+                "SELECT * FROM measurements WHERE id=?", (measurement_id,)
+            ).fetchone()
+            if row is None:
+                raise LookupError("找不到量測")
+            if row["mapping_version"] == version:
+                return dict(changed=False, mapping_version=version)
+            metrics = encode(normalize(json.loads(row["raw"]), self.verified))
+            db.execute(
+                "INSERT INTO normalizations(measurement_id,metrics,mapping_version,at,actor) VALUES(?,?,?,?,?)",
+                (measurement_id, metrics, version, now(), "operator"),
+            )
+            db.execute(
+                "UPDATE measurements SET metrics=?,mapping_version=? WHERE id=?",
+                (metrics, version, measurement_id),
+            )
+            return dict(changed=True, mapping_version=version)
 
     def patient(self, patient_id: int) -> dict[str, Any]:
         with self.store.connect() as db:

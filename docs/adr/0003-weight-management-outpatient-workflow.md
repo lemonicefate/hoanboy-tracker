@@ -24,3 +24,21 @@
 病人頁的核心減重摘要至少包含起始體重、目前體重、減少公斤、減重百分比、起始腰圍與目前腰圍，並保留體重與腰圍歷程。若有 HOANBOY 資料，另提供體脂及其他經驗證 body-composition 指標的歷次曲線。詳細圖表範圍與版面屬後續產品規格，不在本 ADR 鎖死。
 
 這個決策使新系統成為病人、Episode、Encounter、症狀與用藥歷程的主工作流；身體組成設備則透過可替換 adapter 提供資料與報告能力，HOANBOY 只是第一個實作。這增加一次資料遷移、標準資料模型與 adapter contract 的設計成本，但避免兩套病人資料庫長期分叉，也讓未來更換或新增體脂設備時不必重寫整個減重門診系統。
+
+
+## 後續資料一致性與操作決策（2026-09-27）
+
+- 同一病人同一天可有多個 Encounter，以實際建立時間區分，不以日期限制唯一。
+- 從病人頁按「新增本次紀錄」後才建立 Encounter；單純查看歷史不建立空白紀錄。
+- 完全沒有任何臨床資料的空白 Draft 可由系統自動清理，不需保留 audit；一旦已有體重、腰圍、症狀、體脂關聯或用藥資料，就不得永久刪除，後續以取消、更正或 reopen 處理。
+- 體重與腰圍可由護理師或醫師新增與修改。Encounter 完成後的修改視為 correction，需保存原值、修改者與時間。
+- Encounter 採 Draft → Completed → Reopened / Corrected 的 workflow state。為避免誤按上一頁、關閉分頁或瀏覽器造成資料遺失，Draft 採 autosave：欄位異動即持久化儲存，不以離開頁面作為放棄；只有明確按「完成此次紀錄」才進入 Completed。重新開啟 Draft 時應恢復先前已輸入內容。
+- 多人同時操作同一 Encounter 採 optimistic concurrency；舊版本儲存不得靜默覆蓋較新的修改，需提示重新載入或合併。
+- 症狀紀錄在 MVP 只保存 Encounter 當下的最新狀態，不要求逐次修改歷史；「無明顯不適」與其他症狀互斥。
+- 症狀嚴重度不列入 MVP，保留為上線後依實際回饋再評估的擴充項目。
+- 「繼續原療程」會複製上一次完整 medication regimen，而不是只帶入單一藥物。
+- 殘劑手動 mg 在 MVP 僅要求為正數，不做臨床上限或劑量合理性判斷。
+- 病人頁提供 medication history timeline，以時間方式呈現藥物、劑量與提高／降低／更換／暫停等變化。
+- 同一 Encounter 可綁定多筆身體組成量測，但只能指定一筆 primary measurement；病人摘要與 body-composition 趨勢預設使用 primary measurement，其他量測保留作 repeat measurements。
+- Encounter weight 與 body-composition device weight 是兩個不同來源的資料，不互相覆蓋。減重主體重曲線使用 Encounter weight；設備報告與 body-composition 趨勢使用設備量測值。
+- 減重病患總清單第一版顯示：MRN、姓名、手機、目前體重、總減重百分比、最後一次 Encounter 日期、Active / Closed 狀態。

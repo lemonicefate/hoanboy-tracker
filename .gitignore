@@ -1,0 +1,12 @@
+/private/
+/backups/
+/.env
+/.env.*
+!/.env.example
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+__pycache__/
+.venv/
+node_modules/

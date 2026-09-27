@@ -3,7 +3,7 @@
 診所體脂量測歸檔與追蹤專案。第一版：區網直讀、人工歸檔、離線完整報告與獨立追蹤頁。
 
 - [已確認 MVP 與驗收](docs/mvp-boundary.md)
-- [綜合實作規格（待發布）](docs/spec.md)
+- [綜合實作規格](docs/spec.md)
 - [用語](CONTEXT.md)
 - [決策紀錄](docs/adr/)
 - [設備介接初驗與欄位映射](docs/device-validation.md)

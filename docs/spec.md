@@ -1,6 +1,8 @@
 # HOANBOY 體脂量測歸檔與離線報告 MVP
 
-狀態：需求與分層測試方案已確認；待設定 issue tracker 後發布並套用 ready-for-agent。
+狀態：需求與分層測試方案已確認；可開始實作，尚未完成的實機及報告驗收列於下文。
+
+追蹤：https://github.com/lemonicefate/hoanboy-tracker/issues/1 （ready-for-agent）。
 
 ## Problem Statement
 
@@ -105,7 +107,7 @@
 
 ## Further Notes
 
-- 2026-09-27 已初始化 Git，尚無 Git remote 或專案 issue tracker 設定；此文件尚未發布，ready-for-agent 尚未套用。依 to-spec 需執行 /setup-matt-pocock-skills 完成設定。
+- 專案 issue tracker 為 GitHub lemonicefate/hoanboy-tracker，採五個預設 triage 標籤；本規格以 ready-for-agent 追蹤實作，並保留文中正式驗收缺口。
 - 設備讀取來源為 Android Debug Database，並非已確認正式支援 API。需向廠商確認正式介面及除錯服务限制方式；不以其他機型的 API 宣稱取代驗證。
 - 已讀得 152 欄；使用者測試前後由 14 列增至 15 列，新增一筆的 username 與使用者提供的輸入吻合。這是一次新增驗證，不保證長期穩定或全部歷史都有保留。
 - result 與 parameter 在初驗快照為空，結果位於 bh... 欄位。原始數值可能有浮點差異，不能直接以字串相等判定顯示值一致。

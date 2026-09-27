@@ -10,3 +10,7 @@
 __pycache__/
 .venv/
 node_modules/
+.pytest_cache/
+.mypy_cache/
+test-results/
+*.pyc

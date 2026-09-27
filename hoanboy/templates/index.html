@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>HOANBOY · 量測追蹤</title>
+    <link rel="stylesheet" href="/static/app.css" />
+    <script src="/static/app.js" defer></script>
+  </head>
+  <body>
+    <div id="login" class="login">
+      <div class="login-card">
+        <div class="brand">H<span>O</span>ANBOY</div>
+        <p class="eyebrow">診所量測工作台</p>
+        <h1>每次量測，都有脈絡。</h1>
+        <p class="muted">本機保存 · 人工歸檔 · 離線查閱</p>
+        <form id="login-form">
+          <label
+            >操作帳號密碼<input
+              name="password"
+              type="password"
+              autocomplete="current-password"
+              required
+              autofocus /></label
+          ><button>登入工作台 →</button>
+        </form>
+        <p id="login-error" role="alert"></p>
+        <p class="small muted">
+          資料保存在這台電腦。首次使用請先執行初始化指令。
+        </p>
+      </div>
+    </div>
+    <div id="workspace" hidden>
+      <aside>
+        <a class="brand" href="#pending">H<span>O</span>ANBOY</a>
+        <p class="eyebrow">量測追蹤工作台</p>
+        <nav aria-label="主要導覽">
+          <a href="#pending" data-nav="pending">01 <span>待歸檔</span></a
+          ><a href="#patients" data-nav="patients">02 <span>病人與追蹤</span></a
+          ><a href="#backups" data-nav="backups">03 <span>備份與還原</span></a>
+        </nav>
+        <div class="aside-bottom">
+          <span class="dot"></span> 僅限本機<br />
+          <p class="small">原始資料完整保留<br />歸檔一律由人員確認</p>
+          <button class="quiet" id="logout">登出</button>
+        </div>
+      </aside>
+      <div class="main-wrap">
+        <header>
+          <span>診所工作空間 <span class="muted">/ 本機資料庫</span></span>
+          <div>
+            <span id="sync-status" class="small muted"></span
+            ><button id="sync-button">同步設備</button>
+          </div>
+        </header>
+        <div id="notice" role="status" aria-live="polite" hidden></div>
+        <main id="content" tabindex="-1"></main>
+        <footer>
+          HOANBOY 370 ·
+          設備欄位與報告判定尚待原廠核對，請勿將開發核對稿用於臨床判定。
+        </footer>
+      </div>
+    </div>
+  </body>
+</html>

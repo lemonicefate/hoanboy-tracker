@@ -1,0 +1,24 @@
+[project]
+name = "hoanboy-tracker"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = ["Flask>=3.1,<4", "waitress>=3,<4"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8,<10",
+    "mypy>=1.15,<2",
+    "types-waitress",
+    "playwright>=1.50,<2",
+    "pypdf>=6.19.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.mypy]
+files = ["hoanboy"]
+check_untyped_defs = true
+disallow_untyped_defs = true
+

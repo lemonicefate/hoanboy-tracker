@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>人體健康分析報告 · 開發核對稿</title>
+    <style>
+      @page {
+        size: A4 portrait;
+        margin: 9mm;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Microsoft JhengHei", sans-serif;
+        color: #153b50;
+        margin: 0;
+        background: #e9eef2;
+        font-size: 10px;
+      }
+      .sheet {
+        width: 192mm;
+        min-height: 277mm;
+        margin: 18px auto;
+        background: white;
+        padding: 8mm;
+        box-shadow: 0 4px 20px #b6c3cd;
+      }
+      h1 {
+        background: #155577;
+        color: white;
+        padding: 12px;
+        margin: 0 0 8px;
+        font-size: 23px;
+        letter-spacing: 2px;
+      }
+      .warning {
+        border: 1px solid #ba731f;
+        background: #fff4d9;
+        color: #734100;
+        padding: 7px;
+        line-height: 1.5;
+        margin: 8px 0;
+      }
+      .identity {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 7px;
+        padding: 6px 0;
+      }
+      .columns {
+        display: grid;
+        grid-template-columns: 1.35fr 1fr;
+        gap: 12px;
+      }
+      section {
+        break-inside: avoid;
+        margin-bottom: 9px;
+      }
+      h2 {
+        font-size: 12px;
+        border-bottom: 2px solid #3887a1;
+        padding: 4px 0;
+        margin: 0 0 4px;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 9px;
+      }
+      td,
+      th {
+        padding: 3px;
+        border-bottom: 1px solid #dee8ec;
+        text-align: left;
+      }
+      th {
+        background: #e9f2f6;
+      }
+      td:last-child {
+        text-align: right;
+      }
+      .source {
+        font-size: 7px;
+        color: #667984;
+        overflow-wrap: anywhere;
+      }
+      .note {
+        color: #79591d;
+        font-size: 8px;
+        line-height: 1.5;
+      }
+      .grid9 {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 2px;
+      }
+      .grid9 span {
+        background: #edf3f6;
+        padding: 8px 2px;
+        text-align: center;
+      }
+      .score {
+        font-size: 36px;
+        text-align: center;
+        color: #155577;
+      }
+      .footer {
+        border-top: 2px solid #155577;
+        padding-top: 6px;
+        font-size: 8px;
+        overflow-wrap: anywhere;
+      }
+      .muted {
+        color: #657984;
+      }
+      .range {
+        font-size: 8px;
+      }
+      @media print {
+        body {
+          background: white;
+        }
+        .sheet {
+          margin: 0;
+          padding: 0;
+          box-shadow: none;
+          width: auto;
+          min-height: 0;
+        }
+        .no-print,
+        .source,
+        td .note {
+          display: none;
+        }
+        td,
+        th {
+          padding: 2px;
+        }
+        section {
+          margin-bottom: 6px;
+        }
+        .note {
+          margin: 5px 0;
+          line-height: 1.3;
+        }
+        h1 {
+          padding: 8px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <article class="sheet">
+      <p class="no-print">離線保存版本 · 按 Ctrl+P 列印／另存 PDF</p>
+      <h1>人體健康分析報告</h1>
+      <div class="warning">
+        <strong>開發核對稿 — 未驗證，不作臨床判定</strong
+        ><br />數值、候選單位與代碼須同次原廠報告核對。體型、綜合評估、節段判定及長條比例未驗證；本稿不代表完整報告已驗收。
+      </div>
+      <div class="identity">
+        <span>病歷號 <strong>{{ patient.mrn }}</strong></span
+        ><span>姓名 <strong>{{ patient.name }}</strong></span
+        ><span>性別代碼 {{ current.raw.get('gender', '缺值') }}（未驗證）</span
+        ><span>當次年齡 {{ current.raw.get('age', '缺值') }}</span
+        ><span
+          >當次身高 {{ current.raw.get('height', '缺值') }}（單位待核對）</span
+        ><span>{{ current.source_time or '時間缺值' }}</span>
+      </div>
+      <p class="note">
+        設備原始時間；來源時區與時鐘未校準。顯示需求：台灣時間，尚未視為已驗證轉換。
+      </p>
+      {% macro metric_table(keys) %}
+      <table>
+        <thead>
+          <tr>
+            <th>項目／來源</th>
+            <th>候選範圍</th>
+            <th>來源值</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for key in keys %}{% set m=current.metrics[key] %}
+          <tr>
+            <td>
+              {{ m.label }}
+              <div class="source">{{ m.source }}</div>
+            </td>
+            <td class="range">
+              {{ m.minimum if m.minimum is not none else '—' }} – {{ m.maximum
+              if m.maximum is not none else '—' }}
+            </td>
+            <td>
+              {% if m.value is not none %}{{ '%.2f'|format(m.value) if
+              key=='whr' else '%.1f'|format(m.value) }} {{ m.unit }}{% else %}{{
+              '解析失敗' if m.status=='invalid' else '缺值' }}{% endif %}
+              <div class="note">
+                {{ '已核對' if m.status=='verified' else '未驗證' }}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endmacro %}
+      <div class="columns">
+        <div>
+          <section data-section="1">
+            <h2>01 人體成分分析</h2>
+            {{ metric_table(['water','protein','mineral','fat','fat_free']) }}
+          </section>
+          <section data-section="2">
+            <h2>02 肌肉脂肪分析</h2>
+            {{ metric_table(['weight','skeletal','fat']) }}
+            <p class="note">原廠長條比例及低／正常／高判定尚未驗證。</p>
+          </section>
+          <section data-section="3">
+            <h2>03 肥胖分析</h2>
+            {{ metric_table(['bmi','fat_rate','whr','subcutaneous']) }}
+            <p class="note">腰臀比保留比值，不乘 100。</p>
+          </section>
+          <section data-section="4">
+            <h2>04 內臟脂肪等級</h2>
+            {{ metric_table(['visceral']) }}
+          </section>
+          <section data-section="5">
+            <h2>05 節段肌肉與脂肪</h2>
+            <table>
+              <tr>
+                <th>部位</th>
+                <th>肌肉 kg*</th>
+                <th>脂肪 kg*</th>
+              </tr>
+              {% for suffix,label in
+              [('RightArm','右臂'),('LeftArm','左臂'),('Trunk','軀幹'),('RightLeg','右腿'),('LeftLeg','左腿')]
+              %}
+              <tr>
+                <td>{{label}}</td>
+                {% for prefix in ['muscle_','fat_'] %}{% set
+                m=current.metrics[prefix+suffix] %}
+                <td>
+                  {{ '%.1f'|format(m.value) if m.value is not none else '缺值'
+                  }}
+                </td>
+                {% endfor %}
+              </tr>
+              {% endfor %}
+            </table>
+            <p class="note">
+              *候選重量單位；逐欄來源保存在量測明細。節段標準／偏高判定缺乏來源，不自行推算。
+            </p>
+          </section>
+          <section data-section="6">
+            <h2>06 身體變化趨勢</h2>
+            <table>
+              <tr>
+                <th>時間</th>
+                <th>體重</th>
+                <th>骨骼肌</th>
+                <th>體脂率</th>
+              </tr>
+              {% for m in history[-5:] %}
+              <tr>
+                <td>{{ m.source_time }}</td>
+                {% for k in ['weight','skeletal','fat_rate'] %}
+                <td>
+                  {{ '%.1f'|format(m.metrics[k].value) if m.metrics[k].value is
+                  not none else '缺值' }}
+                </td>
+                {% endfor %}
+              </tr>
+              {% endfor %}
+            </table>
+            <p class="note">
+              截至本次、最近 5 筆來源值摘要；{{history|length}} 筆歷史與選用 ID
+              已保存。數值／單位未驗證者不構成正式趨勢。
+            </p>
+          </section>
+        </div>
+        <div>
+          <section data-section="7">
+            <h2>07 體型分析</h2>
+            <div class="grid9">
+              {% for label in
+              ['過度肥胖','虛胖','虛弱','肥胖','標準','纖瘦','肥碩','健碩','運動員']
+              %}<span>{{label}}</span>{% endfor %}
+            </div>
+            <p>來源 bhBodyType：{{current.raw.get('bhBodyType','缺值')}}</p>
+            <p class="note">代碼位置未驗證，不標記推測格位。</p>
+          </section>
+          <section data-section="8">
+            <h2>08 綜合評估</h2>
+            <table>
+              <tr>
+                <th>項目</th>
+                <th>原始 Level</th>
+              </tr>
+              {% for k in
+              ['protein','mineral','fat','weight','skeletal','bmi','fat_rate','subcutaneous']
+              %}{% set m=current.metrics[k] %}
+              <tr>
+                <td>
+                  {{m.label}}
+                  <div class="source">{{m.level_source}}</div>
+                </td>
+                <td>{{m.level if m.level is not none else '缺值'}}</td>
+              </tr>
+              {% endfor %}
+            </table>
+            <p class="note">代碼未驗證，不勾選正常／缺乏／過量。</p>
+          </section>
+          <section data-section="9">
+            <h2>09 重量控制</h2>
+            {{
+            metric_table(['ideal','weight_control','fat_control','muscle_control','bmr','body_age'])
+            }}
+            <p class="note">保留來源正負號；不自行生成建議。</p>
+          </section>
+          <section data-section="10">
+            <h2>10 健康評分</h2>
+            <div class="score">
+              {{current.metrics.score.value if current.metrics.score.value is
+              not none else '缺值'}} <small>分*</small>
+            </div>
+            <p class="note">bhBodyScore 原始分數；尺度與評估註解未驗證。</p>
+          </section>
+          <p class="muted">誠心醫療體系<br />ALL HEART MEDICAL GROUP</p>
+          <p class="note">院所標誌清晰素材待提供。</p>
+        </div>
+      </div>
+      <footer class="footer">
+        保存於 {{ created_at }} · 模板 {{ template_version }} · 映射 {{
+        current.mapping_version }} · 量測 #{{ current.id }}<br />歸檔修正會使受影響版本失效；病人資料修改與新增量測不改寫本頁。原始值與來源欄位保存在本機。
+      </footer>
+    </article>
+  </body>
+</html>

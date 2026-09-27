@@ -6,7 +6,9 @@
 
 系統首頁採減重門診病患總清單，而非今日掛號清單。人員可用病歷號、姓名或手機搜尋病人後進入病人頁，再建立或進入本次紀錄。每次 Encounter 的體重、腰圍與體脂量測皆可缺省，避免病人趕時間或未量測時阻塞流程。
 
-HOANBOY 370 量測採 encounter-centric 流程整合。既有 hoanboy-tracker 的病人與量測資料需遷移進新系統，正式上線後只保留一套病人主資料與一個資料庫；HOANBOY 的 device reader、mapping、report 與同步邏輯改為新系統內的 integration module，不再維護平行 Patient DB。病人若有 HOANBOY 歷史資料，病人頁除單次完整報告外，也要能呈現歷次 body-composition 趨勢曲線；具體納入哪些指標可在後續 ADR 或 SPEC 再決定。
+身體組成量測採 encounter-centric 流程整合，並以可替換的設備介面模組化。核心系統只依賴統一的 Body Composition Device Adapter contract，例如裝置識別、同步、原始量測、標準化指標、量測時間、來源追蹤與可選的原廠／近似報告能力；不得讓 Patient、Episode、Encounter、趨勢或用藥邏輯直接依賴 HOANBOY 專屬 schema、API 或資料表。HOANBOY 370 是第一個 adapter 實作；未來更換或新增其他廠商體脂計時，原則上只新增或替換 adapter 與該設備的 mapping/report 實作，不重寫減重門診核心工作流。
+
+既有 hoanboy-tracker 的病人與量測資料需遷移進新系統，正式上線後只保留一套病人主資料與一個資料庫；既有 HOANBOY device reader、mapping、report 與同步邏輯移入 body-composition integration layer，不再維護平行 Patient DB。病人若有任何已整合設備的身體組成歷史資料，病人頁除單次完整報告外，也要能呈現歷次 body-composition 趨勢曲線；趨勢只使用已映射到核心標準指標且單位／意義經驗證的資料。具體納入哪些指標可在後續 ADR 或 SPEC 再決定。
 
 症狀與可能的藥物不適以 Encounter-level observation 保存，不放在 Patient 上作為會被覆蓋的單一狀態。第一版提供快速點選常見症狀，例如噁心、嘔吐、腹瀉、便秘、腹脹、腹痛、胃食道不適、食慾過低、頭暈、頭痛、注射部位不適、無明顯不適與其他；可由櫃檯或護理人員先記錄，醫師可於看診時補充或修改，並保留操作者與時間。系統只記錄症狀發生，不自行推定症狀一定由某藥造成。
 
@@ -21,4 +23,4 @@ HOANBOY 370 量測採 encounter-centric 流程整合。既有 hoanboy-tracker �
 
 病人頁的核心減重摘要至少包含起始體重、目前體重、減少公斤、減重百分比、起始腰圍與目前腰圍，並保留體重與腰圍歷程。若有 HOANBOY 資料，另提供體脂及其他經驗證 body-composition 指標的歷次曲線。詳細圖表範圍與版面屬後續產品規格，不在本 ADR 鎖死。
 
-這個決策使新系統成為病人、Episode、Encounter、症狀與用藥歷程的主工作流；HOANBOY 則只負責體脂資料來源與報告能力。這增加一次資料遷移與模組重整成本，但避免兩套病人資料庫長期分叉，也讓未來更換或新增體脂設備時不必重寫整個減重門診系統。
+這個決策使新系統成為病人、Episode、Encounter、症狀與用藥歷程的主工作流；身體組成設備則透過可替換 adapter 提供資料與報告能力，HOANBOY 只是第一個實作。這增加一次資料遷移、標準資料模型與 adapter contract 的設計成本，但避免兩套病人資料庫長期分叉，也讓未來更換或新增體脂設備時不必重寫整個減重門診系統。

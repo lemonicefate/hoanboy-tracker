@@ -23,3 +23,5 @@ Separate correctness finding: delayed patient searches could populate controls o
 No clear scope creep found.
 
 Totals: Standards — 0 hard violations, 3 maintainability findings and 1 correctness finding resolved. Spec — 2 implementation findings resolved; 1 grouped report/hardware acceptance finding remains open.
+
+Follow-up review of `b4129f8..4fc2f9d`: both reviewers confirmed their fixable findings resolved and found no concrete regression. The Spec reviewer also reran the explicit-revalidation regression successfully. Root validation on `4fc2f9d`: all 22 tests, mypy, JavaScript syntax and diff whitespace checks passed. Full-report and hardware acceptance remain open.

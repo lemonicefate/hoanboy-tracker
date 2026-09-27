@@ -7,6 +7,7 @@
 - [決策紀錄](docs/adr/)
 - [設備介接初驗與欄位映射](docs/device-validation.md)
 - [完整報告範本與十區映射](docs/report-template-mapping.md)
+- [有值報告核對與來源缺口](docs/report-filled-validation.md)
 
 目前進行唯讀介接驗證，尚無可用應用程式。
 病患資料、設備回應與報告樣本僅置於忽略版控的 `private/`；此目錄仍含敏感資料，Git 忽略不等於加密或存取控制。
